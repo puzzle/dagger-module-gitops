@@ -1,4 +1,8 @@
 {
   "name": "gitops",
-  "sdk": "go"
+  "sdk": "go",
+  "dependencies": [
+    "github.com/schlapzz/dagger-modules/git-actions@49d57471338643a5389cd23e67e64359fb9d807c",
+    "github.com/schlapzz/dagger-modules/helm@49d57471338643a5389cd23e67e64359fb9d807c"
+  ]
 }
