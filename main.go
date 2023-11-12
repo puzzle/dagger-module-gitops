@@ -66,7 +66,7 @@ func (m *GitOps) WithAPI(ctx context.Context, apiUrl string, accessToken string)
 	}
 }
 
-func (m *MergeRequest) WithMergeRequest(ctx context.Context, projectPath string, sourceBranch string, targetBranch string, title Optional[string], descripton Optional[string]) *MergeRequest {
+func (m *MergeRequest) withMergeRequest(ctx context.Context, projectPath string, sourceBranch string, targetBranch string, title Optional[string], descripton Optional[string]) *MergeRequest {
 
 	m.Title = title.GetOr("Dagger Bot MR")
 	m.Description = descripton.GetOr("No description provided")
@@ -143,6 +143,6 @@ func (m *GitOps) Run(ctx context.Context, key *File, apiToken string, version st
 	}
 
 	return m.WithAPI(ctx, "https://gitlab.puzzle.ch", apiToken).
-		WithMergeRequest(ctx, "cschlatter/clone-test", prBranch.value, "main", Opt[string](fmt.Sprintf("Update Helm Chart version => %s", version)), Opt[string]("Triggered by Dagger")).
+		withMergeRequest(ctx, "cschlatter/clone-test", prBranch.value, "main", Opt[string](fmt.Sprintf("Update Helm Chart version => %s", version)), Opt[string]("Triggered by Dagger")).
 		createGitLabMR(ctx)
 }

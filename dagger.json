@@ -2,7 +2,7 @@
   "name": "gitops",
   "sdk": "go",
   "dependencies": [
-    "github.com/schlapzz/dagger-modules/git-actions@afc8f3faf43cbee7cfa86f5cc3c64f11c1871b8d",
-    "github.com/schlapzz/dagger-modules/helm@afc8f3faf43cbee7cfa86f5cc3c64f11c1871b8d"
+    "github.com/schlapzz/dagger-modules/git-actions@55fcd72b8ba6934f3c3e103aeaaa84b4a8fa82d0",
+    "github.com/schlapzz/dagger-modules/helm@55fcd72b8ba6934f3c3e103aeaaa84b4a8fa82d0"
   ]
 }
