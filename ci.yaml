@@ -1,7 +1,15 @@
 ops:
-  opsRepository: git@ssh.gitlab.puzzle.ch:cschlatter/clone-test.git
+  repository: git@ssh.gitlab.puzzle.ch:cschlatter/clone-test.git
   targetBranch: main
-  environment: pitc-cicd-helm-demo-prod
+  environments: 
+    pitc-cicd-helm-demo-dev:
+      direct: true
+      tags:
+        - dev
+    pitc-cicd-helm-demo-prod:
+      direct: false
+      tags:
+        - prod
   tags:
   - auto
 

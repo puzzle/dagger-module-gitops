@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	giturls "github.com/whilp/git-urls"
 	"github.com/xanzy/go-gitlab"
 	"gopkg.in/yaml.v2"
 )
@@ -66,7 +67,7 @@ func (m *PitcGitops) WithAPI(ctx context.Context, apiUrl string, accessToken str
 	}
 }
 
-func (m *MergeRequest) withMergeRequest(ctx context.Context, projectPath string, sourceBranch string, targetBranch string, title Optional[string], descripton Optional[string]) *MergeRequest {
+func (m *MergeRequest) withMergeRequest(ctx context.Context, projectPath string, sourceBranch string, targetBranch string, title Optional[string], descripton Optional[string], tags []string) *MergeRequest {
 
 	m.Title = title.GetOr("Dagger Bot MR")
 	m.Description = descripton.GetOr("No description provided")
@@ -104,9 +105,16 @@ type Config struct {
 	HelmPushOpts HelmPushOpts `yaml:"helm"`
 }
 type MrConfig struct {
-	OpsRepository string   `yaml:"opsRepository"`
-	Environment   string   `yaml:"environment"`
-	Tags          []string `yaml:"tags"`
+	OpsRepository string                 `yaml:"repository"`
+	TargetBranch  string                 `yaml:"targetBranch"`
+	Environments  map[string]Environment `yaml:"environments"`
+	Tags          []string               `yaml:"tags"`
+}
+
+type Environment struct {
+	//Push into target branch without MR
+	Direct bool     `yaml:"direct"`
+	Tags   []string `yaml:"tags"`
 }
 
 type HelmPushOpts struct {
@@ -154,21 +162,50 @@ func (m *PitcGitops) Run(ctx context.Context, key *File, apiToken string, helmCh
 	gitAction := dag.GitActions().WithRepository(config.MrConfig.OpsRepository, key)
 	gitDir := gitAction.CloneSSH()
 
-	//rand := randomstring.HumanFriendlyEnglishString(6)
-	prBranch := Opt[string](fmt.Sprintf("update/helm-revision-%s", version))
+	for name, env := range config.MrConfig.Environments {
 
-	gitDir, err = m.
-		UpdateHelmRevision(ctx, gitDir, config.MrConfig.Environment, version)
-	if err != nil {
-		return err
+		fmt.Println("process environemnt: " + name)
+
+		var prBranch string
+		if env.Direct {
+			prBranch = config.MrConfig.TargetBranch
+		} else {
+			prBranch = fmt.Sprintf("update/helm-revision-%s", version)
+		}
+
+		gitDir, err = m.
+			UpdateHelmRevision(ctx, gitDir, name, version)
+		if err != nil {
+			return err
+		}
+
+		_, err = gitAction.Push(ctx, gitDir, GitActionsGitActionRepositoryPushOpts{PrBranch: prBranch})
+		if err != nil {
+			return err
+		}
+
+		if env.Direct {
+			fmt.Println("push direct, skip mr")
+			return nil
+		}
+
+		url, err := giturls.Parse(config.MrConfig.OpsRepository)
+		if err != nil {
+			return err
+		}
+
+		project := strings.TrimSuffix(url.Host, ".git")
+
+		tags := append(config.MrConfig.Tags, env.Tags...)
+
+		err = m.WithAPI(ctx, "https://gitlab.puzzle.ch", apiToken).
+			withMergeRequest(ctx, project, prBranch, config.MrConfig.TargetBranch, Opt[string](fmt.Sprintf("Update Helm Chart version => %s", version)), Opt[string]("Triggered by Dagger"), tags).
+			createGitLabMR(ctx)
+
+		if err != nil {
+			return err
+		}
 	}
 
-	_, err = gitAction.Push(ctx, gitDir, GitActionsGitActionRepositoryPushOpts{PrBranch: fmt.Sprintf("update/helm-revision-%s", version)})
-	if err != nil {
-		return err
-	}
-
-	return m.WithAPI(ctx, "https://gitlab.puzzle.ch", apiToken).
-		withMergeRequest(ctx, "cschlatter/clone-test", prBranch.value, "main", Opt[string](fmt.Sprintf("Update Helm Chart version => %s", version)), Opt[string]("Triggered by Dagger")).
-		createGitLabMR(ctx)
+	return nil
 }
