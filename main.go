@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"main/cfg"
 	"os"
 	"strings"
 
@@ -100,30 +101,6 @@ func StringPtr(s string) *string {
 	return &s
 }
 
-type Config struct {
-	MrConfig     *MrConfig    `yaml:"ops"`
-	HelmPushOpts HelmPushOpts `yaml:"helm"`
-}
-type MrConfig struct {
-	OpsRepository string                 `yaml:"repository"`
-	TargetBranch  string                 `yaml:"targetBranch"`
-	Environments  map[string]Environment `yaml:"environments"`
-	Tags          []string               `yaml:"tags"`
-}
-
-type Environment struct {
-	//Push into target branch without MR
-	Direct bool     `yaml:"direct"`
-	Tags   []string `yaml:"tags"`
-}
-
-type HelmPushOpts struct {
-	Registry   string `yaml:"registry"`
-	Repository string `yaml:"repository"`
-	Oci        bool   `yaml:"oci"`
-	Username   string `yaml:"username"`
-}
-
 func (m *PitcGitops) Run(ctx context.Context, key *File, apiToken string, helmChart *Directory, registryPassword string) error {
 
 	_, err := os.Stat("./ci.yaml")
@@ -138,7 +115,7 @@ func (m *PitcGitops) Run(ctx context.Context, key *File, apiToken string, helmCh
 		return err
 	}
 
-	config := &Config{}
+	config := &cfg.Config{}
 	err = yaml.Unmarshal(content, config)
 	if err != nil {
 		return err
