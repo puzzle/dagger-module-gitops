@@ -141,7 +141,7 @@ func (m *PitcGitops) Run(ctx context.Context, key *File, apiToken string, helmCh
 		return err
 	}
 
-	pushed, err := dag.Helm().PackagePush(ctx, helmChart, config.HelmPushOpts.Registry, config.MrConfig.OpsRepository, config.HelmPushOpts.Username, registryPassword)
+	pushed, err := dag.Helm().PackagePush(ctx, helmChart, config.HelmPushOpts.Registry, config.HelmPushOpts.Repository, config.HelmPushOpts.Username, registryPassword)
 	if err != nil {
 		return err
 	}
