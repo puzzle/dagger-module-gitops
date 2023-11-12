@@ -12,11 +12,11 @@ import (
 
 const WorkDir = "/gitops"
 
-type GitOps struct {
+type PitcGitops struct {
 }
 
 // pitc-cicd-helm-demo-prod
-func (m *GitOps) UpdateHelmRevision(ctx context.Context, gitDir *Directory, envName string, revision string) (*Directory, error) {
+func (m *PitcGitops) UpdateHelmRevision(ctx context.Context, gitDir *Directory, envName string, revision string) (*Directory, error) {
 
 	mod := dag.Container().From("registry.puzzle.ch/cicd/alpine-base:latest").
 		WithDirectory(WorkDir, gitDir).
@@ -39,7 +39,7 @@ func (m *GitOps) UpdateHelmRevision(ctx context.Context, gitDir *Directory, envN
 
 }
 
-func (m *GitOps) UpdateImageTagHelm(ctx context.Context, gitDir *Directory, valuesFile string, jsonPath string, revision string) (*Directory, error) {
+func (m *PitcGitops) UpdateImageTagHelm(ctx context.Context, gitDir *Directory, valuesFile string, jsonPath string, revision string) (*Directory, error) {
 
 	return dag.Container().From("registry.puzzle.ch/cicd/alpine-base:latest").
 		WithDirectory(WorkDir, gitDir).
@@ -59,7 +59,7 @@ type MergeRequest struct {
 	AccessToken  string
 }
 
-func (m *GitOps) WithAPI(ctx context.Context, apiUrl string, accessToken string) *MergeRequest {
+func (m *PitcGitops) WithAPI(ctx context.Context, apiUrl string, accessToken string) *MergeRequest {
 	return &MergeRequest{
 		AccessToken: accessToken,
 		ApiUrl:      apiUrl,
@@ -99,13 +99,24 @@ func StringPtr(s string) *string {
 	return &s
 }
 
+type Config struct {
+	MrConfig     *MrConfig    `yaml:"ops"`
+	HelmPushOpts HelmPushOpts `yaml:"helm"`
+}
 type MrConfig struct {
 	OpsRepository string   `yaml:"opsRepository"`
 	Environment   string   `yaml:"environment"`
 	Tags          []string `yaml:"tags"`
 }
 
-func (m *GitOps) Run(ctx context.Context, key *File, apiToken string, version string) error {
+type HelmPushOpts struct {
+	Registry   string `yaml:"registry"`
+	Repository string `yaml:"repository"`
+	Oci        bool   `yaml:"oci"`
+	Username   string `yaml:"username"`
+}
+
+func (m *PitcGitops) Run(ctx context.Context, key *File, apiToken string, helmChart *Directory, registryPassword string) error {
 
 	_, err := os.Stat("./ci.yaml")
 	if err != nil {
@@ -119,20 +130,35 @@ func (m *GitOps) Run(ctx context.Context, key *File, apiToken string, version st
 		return err
 	}
 
-	mrConfig := &MrConfig{}
-	err = yaml.Unmarshal(content, mrConfig)
+	config := &Config{}
+	err = yaml.Unmarshal(content, config)
 	if err != nil {
 		return err
 	}
 
-	gitAction := dag.GitActions().WithRepository(mrConfig.OpsRepository, key)
+	version, err := dag.Helm().Version(ctx, helmChart)
+	if err != nil {
+		return err
+	}
+
+	pushed, err := dag.Helm().PackagePush(ctx, helmChart, config.HelmPushOpts.Registry, config.MrConfig.OpsRepository, config.HelmPushOpts.Username, registryPassword)
+	if err != nil {
+		return err
+	}
+
+	if !pushed {
+		fmt.Println("chart is up to date")
+		return nil
+	}
+
+	gitAction := dag.GitActions().WithRepository(config.MrConfig.OpsRepository, key)
 	gitDir := gitAction.CloneSSH()
 
 	//rand := randomstring.HumanFriendlyEnglishString(6)
 	prBranch := Opt[string](fmt.Sprintf("update/helm-revision-%s", version))
 
 	gitDir, err = m.
-		UpdateHelmRevision(ctx, gitDir, mrConfig.Environment, version)
+		UpdateHelmRevision(ctx, gitDir, config.MrConfig.Environment, version)
 	if err != nil {
 		return err
 	}
