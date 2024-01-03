@@ -68,6 +68,8 @@ dagger mod update
 
 ## To Do
 
+- [ ] document functions
+- [ ] Update module dependencies to new repo
 - [ ] Add more tools
 - [ ] Add cache mounts
 - [ ] Add environment variables
