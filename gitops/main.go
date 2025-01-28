@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"main/internal/dagger"
 	"fmt"
 	"main/cfg"
 	"os"
@@ -18,7 +19,12 @@ type PitcGitops struct {
 }
 
 // pitc-cicd-helm-demo-prod
-func (m *PitcGitops) UpdateHelmRevision(ctx context.Context, gitDir *Directory, envName string, revision string) (*Directory, error) {
+func (m *PitcGitops) UpdateHelmRevision(
+	ctx context.Context,
+	gitDir *dagger.Directory,
+	envName string,
+	revision string,
+) (*dagger.Directory, error) {
 
 	mod := dag.Container().From("registry.puzzle.ch/cicd/alpine-base:latest").
 		WithDirectory(WorkDir, gitDir).
@@ -41,7 +47,13 @@ func (m *PitcGitops) UpdateHelmRevision(ctx context.Context, gitDir *Directory, 
 
 }
 
-func (m *PitcGitops) UpdateImageTagHelm(ctx context.Context, gitDir *Directory, valuesFile string, jsonPath string, revision string) (*Directory, error) {
+func (m *PitcGitops) UpdateImageTagHelm(
+	ctx context.Context,
+	gitDir *dagger.Directory,
+	valuesFile string,
+	jsonPath string,
+	revision string,
+) (*dagger.Directory, error) {
 
 	return dag.Container().From("registry.puzzle.ch/cicd/alpine-base:latest").
 		WithDirectory(WorkDir, gitDir).
@@ -61,17 +73,39 @@ type MergeRequest struct {
 	AccessToken  string
 }
 
-func (m *PitcGitops) WithAPI(ctx context.Context, apiUrl string, accessToken string) *MergeRequest {
+func (m *PitcGitops) WithAPI(
+	ctx context.Context,
+	apiUrl string,
+	accessToken string,
+) *MergeRequest {
 	return &MergeRequest{
 		AccessToken: accessToken,
 		ApiUrl:      apiUrl,
 	}
 }
 
-func (m *MergeRequest) withMergeRequest(ctx context.Context, projectPath string, sourceBranch string, targetBranch string, title Optional[string], descripton Optional[string], tags []string) *MergeRequest {
+func (m *MergeRequest) withMergeRequest(
+	ctx context.Context,
+	projectPath string,
+	sourceBranch string,
+	targetBranch string,
+	// +optional
+	title string,
+	// +optional
+	description string,
+	tags []string,
+) *MergeRequest {
 
-	m.Title = title.GetOr("Dagger Bot MR")
-	m.Description = descripton.GetOr("No description provided")
+	if title != "" {
+		m.Title = title
+	} else {
+		m.Title = "Dagger Bot MR"
+	}
+	if description != "" {
+		m.Description = description
+	} else {
+		m.Description = "No description provided"
+	}
 	m.SourceBranch = sourceBranch
 	m.TargetBranch = targetBranch
 	m.ProjectPath = projectPath
@@ -79,7 +113,9 @@ func (m *MergeRequest) withMergeRequest(ctx context.Context, projectPath string,
 	return m
 }
 
-func (m *MergeRequest) createGitLabMR(ctx context.Context) error {
+func (m *MergeRequest) createGitLabMR(
+	ctx context.Context,
+) error {
 
 	glClient, err := gitlab.NewClient(m.AccessToken, gitlab.WithBaseURL(m.ApiUrl))
 	if err != nil {
@@ -97,11 +133,19 @@ func (m *MergeRequest) createGitLabMR(ctx context.Context) error {
 	return err
 }
 
-func StringPtr(s string) *string {
+func StringPtr(
+	s string,
+) *string {
 	return &s
 }
 
-func (m *PitcGitops) Run(ctx context.Context, key *File, apiToken string, helmChart *Directory, registryPassword string) error {
+func (m *PitcGitops) Run(
+	ctx context.Context,
+	key *dagger.File,
+	apiToken string,
+	helmChart *dagger.Directory,
+	registryPassword *dagger.Secret,
+) error {
 
 	_, err := os.Stat("./ci.yaml")
 	if err != nil {
@@ -156,7 +200,7 @@ func (m *PitcGitops) Run(ctx context.Context, key *File, apiToken string, helmCh
 			return err
 		}
 
-		_, err = gitAction.Push(ctx, gitDir, GitActionsGitActionRepositoryPushOpts{PrBranch: prBranch})
+		err = gitAction.Push(ctx, gitDir, dagger.GitActionsGitActionRepositoryPushOpts{PrBranch: prBranch})
 		if err != nil {
 			return err
 		}
@@ -176,7 +220,7 @@ func (m *PitcGitops) Run(ctx context.Context, key *File, apiToken string, helmCh
 		tags := append(config.MrConfig.Tags, env.Tags...)
 
 		err = m.WithAPI(ctx, "https://gitlab.puzzle.ch", apiToken).
-			withMergeRequest(ctx, project, prBranch, config.MrConfig.TargetBranch, Opt[string](fmt.Sprintf("Update Helm Chart version => %s", version)), Opt[string]("Triggered by Dagger"), tags).
+			withMergeRequest(ctx, project, prBranch, config.MrConfig.TargetBranch, fmt.Sprintf("Update Helm Chart version => %s", version), "Triggered by Dagger", tags).
 			createGitLabMR(ctx)
 
 		if err != nil {
