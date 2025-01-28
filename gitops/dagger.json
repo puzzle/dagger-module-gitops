@@ -1,8 +1,0 @@
-{
-  "name": "pitc-gitops",
-  "sdk": "go",
-  "dependencies": [
-    "github.com/schlapzz/dagger-modules/git-actions@093318885425ae717b27ffd01b9167a1bab3c52f",
-    "github.com/schlapzz/dagger-modules/helm@093318885425ae717b27ffd01b9167a1bab3c52f"
-  ]
-}
