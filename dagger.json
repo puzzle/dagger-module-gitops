@@ -1,7 +1,18 @@
 {
-  "name": "modest",
+  "name": "pitc-gitops",
+  "engineVersion": "v0.15.3",
   "sdk": "go",
   "dependencies": [
-    "gitops"
-  ]
+    {
+      "name": "git-actions",
+      "source": "github.com/puzzle/dagger-module-git-actions/git-actions@v0.9.1",
+      "pin": "034f9e50c01cc5a2b13b81854a48e29ad8162b6a"
+    },
+    {
+      "name": "helm",
+      "source": "github.com/puzzle/dagger-module-helm/helm@v1.1.1",
+      "pin": "823716b16f03c41548096f3d160ce032d21ceda0"
+    }
+  ],
+  "source": "gitops"
 }
