@@ -29,14 +29,10 @@ The GitOps module is referenced locally.
 
 ## development
 
-Basic development guide.
-
-### setup Dagger module
-
-Setup the Dagger module:
+Update the module:
 
 ```bash
-dagger init --sdk go --name pitc-gitops --source gitops
+dagger develop
 ```
 
 ## To Do
